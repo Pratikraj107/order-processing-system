@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: Event-driven order processing system
+
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    LoggingConfig:
+      LogFormat: JSON
+
+Resources:
+
+  OrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: HelloWorldFunction
+      Handler: helloworld.App::handleRequest
+      Runtime: java21
+      Architectures:
+        - x86_64
+
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref OrdersTable
+        
+        - DynamoDBReadPolicy:
+            TableName: !Ref OrdersTable
+
+      Environment:
+        Variables:
+          ORDERS_TABLE_NAME: !Ref OrdersTable
+
+      Events:
+        CreateOrder:
+          Type: Api
+          Properties:
+            Path: /orders
+            Method: post
+        
+        GetOrder:
+          Type: Api
+          Properties:
+            Path: /orders/{orderId}
+            Method: get
+
+  OrdersTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: orders
+      PrimaryKey:
+        Name: orderId
+        Type: String
+
+Outputs:
+
+  OrderApi:
+    Description: API Gateway endpoint for the Order API
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/orders"
+
+  OrderFunction:
+    Description: Order Lambda Function ARN
+    Value: !GetAtt OrderFunction.Arn
