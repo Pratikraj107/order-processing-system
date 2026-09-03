@@ -6,20 +6,15 @@ pipeline {
         PATH = "${JAVA_HOME}\\bin;${env.PATH}"
     }
 
+    options {
+        skipDefaultCheckout(true)
+    }
+
     stages {
 
         stage('Checkout') {
             steps {
                 checkout scm
-            }
-        }
-
-        stage('Check Java') {
-            steps {
-                bat 'echo JAVA_HOME=%JAVA_HOME%'
-                bat 'where java'
-                bat 'java -version'
-                bat 'mvn -version'
             }
         }
 
@@ -40,6 +35,28 @@ pipeline {
         stage('SAM Build') {
             steps {
                 bat 'sam build'
+            }
+        }
+
+        stage('AWS Authentication') {
+            steps {
+                withCredentials([
+                    [$class: 'AmazonWebServicesCredentialsBinding',
+                     credentialsId: 'aws-order-processing']
+                ]) {
+                    bat 'aws sts get-caller-identity'
+                }
+            }
+        }
+
+        stage('Deploy to AWS') {
+            steps {
+                withCredentials([
+                    [$class: 'AmazonWebServicesCredentialsBinding',
+                     credentialsId: 'aws-order-processing']
+                ]) {
+                    bat 'sam deploy --no-confirm-changeset --no-fail-on-empty-changeset'
+                }
             }
         }
     }
