@@ -1,8 +1,9 @@
 pipeline {
     agent any
 
-    tools {
-        jdk 'Java21'
+    environment {
+        JAVA_HOME = 'C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.12.101-hotspot'
+        PATH = "${JAVA_HOME}\\bin;${env.PATH}"
     }
 
     stages {
@@ -10,6 +11,15 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Check Java') {
+            steps {
+                bat 'echo JAVA_HOME=%JAVA_HOME%'
+                bat 'where java'
+                bat 'java -version'
+                bat 'mvn -version'
             }
         }
 
