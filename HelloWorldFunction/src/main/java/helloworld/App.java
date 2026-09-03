@@ -163,7 +163,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         headers.put("Content-Type", "application/json");
 
         String safeMessage =
-                message == null ? "Invalid request" : message;
+                message == null ? "Invalid request made" : message;
 
         return new APIGatewayProxyResponseEvent()
                 .withStatusCode(400)
