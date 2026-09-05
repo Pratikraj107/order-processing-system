@@ -6,8 +6,11 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import helloworld.messaging.KafkaOrderEventPublisher;
+import helloworld.messaging.OrderEventPublisher;
 import helloworld.model.OrderRequest;
 import helloworld.model.OrderResponse;
+import helloworld.repository.OrderRepository;
 import helloworld.repository.OrderRepositoryInterface;
 import helloworld.service.OrderService;
 
@@ -23,22 +26,46 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
      * Production constructor.
      *
      * AWS Lambda uses this constructor.
-     * It creates the real DynamoDB repository.
+     * It creates the real DynamoDB repository
+     * and Kafka event publisher.
      */
     public App() {
-        this.objectMapper = new ObjectMapper();
-        this.orderService = new OrderService();
+        this(
+            new OrderRepository(),
+            new KafkaOrderEventPublisher()
+        );
     }
 
     /*
      * Test constructor.
      *
-     * Allows unit tests to inject a fake repository
-     * instead of connecting to DynamoDB.
+     * Allows tests to inject a fake repository.
      */
     public App(OrderRepositoryInterface orderRepository) {
+        this(
+            orderRepository,
+            new KafkaOrderEventPublisher()
+        );
+    }
+
+    /*
+     * Fully injectable constructor.
+     *
+     * Allows tests to inject both:
+     * - Fake repository
+     * - Fake event publisher
+     */
+    public App(
+            OrderRepositoryInterface orderRepository,
+            OrderEventPublisher eventPublisher) {
+
         this.objectMapper = new ObjectMapper();
-        this.orderService = new OrderService(orderRepository);
+
+        this.orderService =
+                new OrderService(
+                        orderRepository,
+                        eventPublisher
+                );
     }
 
     @Override
@@ -163,7 +190,9 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         headers.put("Content-Type", "application/json");
 
         String safeMessage =
-                message == null ? "Invalid request made" : message;
+                message == null
+                        ? "Invalid request made"
+                        : message;
 
         return new APIGatewayProxyResponseEvent()
                 .withStatusCode(400)

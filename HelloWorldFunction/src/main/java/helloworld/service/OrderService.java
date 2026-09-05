@@ -1,5 +1,7 @@
 package helloworld.service;
 
+import helloworld.messaging.KafkaOrderEventPublisher;
+import helloworld.messaging.OrderEventPublisher;
 import helloworld.model.OrderRequest;
 import helloworld.model.OrderResponse;
 import helloworld.repository.OrderRepository;
@@ -9,26 +11,41 @@ import java.util.UUID;
 
 public class OrderService {
 
-    private final OrderRepositoryInterface  orderRepository;
+    private final OrderRepositoryInterface orderRepository;
+    private final OrderEventPublisher eventPublisher;
 
     public OrderService() {
-        this(new OrderRepository());
+        this(
+            new OrderRepository(),
+            new KafkaOrderEventPublisher()
+        );
     }
 
-    public OrderService(OrderRepositoryInterface  orderRepository) {
+    public OrderService(OrderRepositoryInterface orderRepository) {
+    this(
+        orderRepository,
+        new KafkaOrderEventPublisher()
+    );
+  }
+
+    public OrderService(
+            OrderRepositoryInterface orderRepository,
+            OrderEventPublisher eventPublisher
+    ) {
         this.orderRepository = orderRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public OrderResponse getOrder(String orderId) {
 
-    if (orderId == null || orderId.isBlank()) {
-        throw new IllegalArgumentException(
-                "orderId is required"
-        );
-    }
+        if (orderId == null || orderId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "orderId is required"
+            );
+        }
 
-    return orderRepository.findById(orderId);
-}
+        return orderRepository.findById(orderId);
+    }
 
     public OrderResponse createOrder(OrderRequest request) {
 
@@ -46,6 +63,8 @@ public class OrderService {
         );
 
         orderRepository.save(order);
+
+        eventPublisher.publishOrderCreated(order);
 
         return order;
     }

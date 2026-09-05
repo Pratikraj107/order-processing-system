@@ -31,6 +31,7 @@ Resources:
       Environment:
         Variables:
           ORDERS_TABLE_NAME: !Ref OrdersTable
+          KAFKA_ENABLED: "false"
 
       Events:
         CreateOrder:

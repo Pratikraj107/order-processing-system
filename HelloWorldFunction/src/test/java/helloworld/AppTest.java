@@ -3,6 +3,7 @@ package helloworld;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 
+import helloworld.messaging.OrderEventPublisher;
 import helloworld.model.OrderResponse;
 import helloworld.repository.OrderRepositoryInterface;
 
@@ -44,6 +45,25 @@ public class AppTest {
         }
     }
 
+    /*
+     * Fake event publisher so this test does not
+     * connect to Kafka.
+     */
+    private static class FakeOrderEventPublisher
+            implements OrderEventPublisher {
+
+        private OrderResponse publishedOrder;
+
+        @Override
+        public void publishOrderCreated(OrderResponse order) {
+            this.publishedOrder = order;
+        }
+
+        public OrderResponse getPublishedOrder() {
+            return publishedOrder;
+        }
+    }
+
     @Test
     public void successfulCreateOrderResponse() {
 
@@ -51,7 +71,14 @@ public class AppTest {
         FakeOrderRepository fakeRepository =
                 new FakeOrderRepository();
 
-        App app = new App(fakeRepository);
+        FakeOrderEventPublisher fakePublisher =
+                new FakeOrderEventPublisher();
+
+        App app =
+                new App(
+                        fakeRepository,
+                        fakePublisher
+                );
 
         String requestBody = """
                 {
@@ -110,8 +137,21 @@ public class AppTest {
                 content.contains("\"status\":\"CREATED\"")
         );
 
+        // Verify order was saved
         assertNotNull(
                 fakeRepository.savedOrder
+        );
+
+        // Verify OrderCreated event was published
+        assertNotNull(
+                fakePublisher.getPublishedOrder()
+        );
+
+        assertEquals(
+                fakeRepository.savedOrder.getOrderId(),
+                fakePublisher
+                        .getPublishedOrder()
+                        .getOrderId()
         );
     }
 
@@ -121,7 +161,14 @@ public class AppTest {
         FakeOrderRepository fakeRepository =
                 new FakeOrderRepository();
 
-        App app = new App(fakeRepository);
+        FakeOrderEventPublisher fakePublisher =
+                new FakeOrderEventPublisher();
+
+        App app =
+                new App(
+                        fakeRepository,
+                        fakePublisher
+                );
 
         Map<String, String> pathParameters =
                 new HashMap<>();

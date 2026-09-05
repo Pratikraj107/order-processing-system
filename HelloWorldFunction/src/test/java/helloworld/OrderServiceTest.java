@@ -1,5 +1,6 @@
 package helloworld;
 
+import helloworld.messaging.OrderEventPublisher;
 import helloworld.model.OrderRequest;
 import helloworld.model.OrderResponse;
 import helloworld.repository.OrderRepositoryInterface;
@@ -44,14 +45,40 @@ public class OrderServiceTest {
         }
     }
 
+    /*
+     * Fake event publisher for unit testing.
+     *
+     * This does NOT connect to Kafka.
+     */
+    private static class FakeOrderEventPublisher
+            implements OrderEventPublisher {
+
+        private OrderResponse publishedOrder;
+
+        @Override
+        public void publishOrderCreated(OrderResponse order) {
+            this.publishedOrder = order;
+        }
+
+        public OrderResponse getPublishedOrder() {
+            return publishedOrder;
+        }
+    }
+
     @Test
     public void shouldCreateValidOrder() {
 
         FakeOrderRepository fakeRepository =
                 new FakeOrderRepository();
 
+        FakeOrderEventPublisher fakePublisher =
+                new FakeOrderEventPublisher();
+
         OrderService orderService =
-                new OrderService(fakeRepository);
+                new OrderService(
+                        fakeRepository,
+                        fakePublisher
+                );
 
         OrderRequest request = new OrderRequest();
 
@@ -63,6 +90,7 @@ public class OrderServiceTest {
         OrderResponse response =
                 orderService.createOrder(request);
 
+        // Verify order was created
         assertNotNull(response);
         assertNotNull(response.getOrderId());
 
@@ -92,8 +120,21 @@ public class OrderServiceTest {
                 response.getStatus()
         );
 
+        // Verify order was saved
         assertNotNull(
                 fakeRepository.getSavedOrder()
+        );
+
+        // Verify OrderCreated event was published
+        assertNotNull(
+                fakePublisher.getPublishedOrder()
+        );
+
+        assertEquals(
+                response.getOrderId(),
+                fakePublisher
+                        .getPublishedOrder()
+                        .getOrderId()
         );
     }
 
@@ -104,7 +145,10 @@ public class OrderServiceTest {
                 new FakeOrderRepository();
 
         OrderService orderService =
-                new OrderService(fakeRepository);
+                new OrderService(
+                        fakeRepository,
+                        new FakeOrderEventPublisher()
+                );
 
         OrderRequest request = new OrderRequest();
 
@@ -123,7 +167,10 @@ public class OrderServiceTest {
                 new FakeOrderRepository();
 
         OrderService orderService =
-                new OrderService(fakeRepository);
+                new OrderService(
+                        fakeRepository,
+                        new FakeOrderEventPublisher()
+                );
 
         OrderRequest request = new OrderRequest();
 
@@ -142,7 +189,10 @@ public class OrderServiceTest {
                 new FakeOrderRepository();
 
         OrderService orderService =
-                new OrderService(fakeRepository);
+                new OrderService(
+                        fakeRepository,
+                        new FakeOrderEventPublisher()
+                );
 
         OrderRequest request = new OrderRequest();
 
